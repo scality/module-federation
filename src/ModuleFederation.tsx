@@ -5,10 +5,12 @@ import React, {
   lazy,
   useMemo,
   useRef,
-  ReactNode,
   createContext,
   useContext,
-  FunctionComponent
+  FunctionComponent,
+  PropsWithChildren,
+  useCallback,
+  ReactElement,
 } from "react";
 //@ts-expect-error
 import ErrorPage500 from "@scality/core-ui/dist/components/error-pages/ErrorPage500.component";
@@ -20,12 +22,12 @@ type Module = any;
 declare var __webpack_init_sharing__: (scope: string) => Promise<void>;
 declare var __webpack_share_scopes__: { default: any };
 declare global {
-	interface Window {
-		[scope: string]: {
+  interface Window {
+    [scope: string]: {
       init: (sharedModules: any) => Promise<void>;
       get: (module: string) => () => Module;
-    }
-	}
+    };
+  }
 }
 
 export function loadModule(
@@ -63,8 +65,9 @@ export const useDynamicScripts = ({
 }: {
   urls: string[];
 }): { status: "idle" | "loading" | "success" | "error" } => {
-  const [status, setStatus] =
-    useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
 
   const isMountedRef = useRef(false);
   useEffect(() => {
@@ -156,13 +159,101 @@ export type SolutionUI = {
   appHistoryBasePath: string;
 };
 
+const ModuleFederationLoaderContext = createContext<{
+  progress: number;
+  setProgress: (progress: number | ((oldProgress: number) => number)) => void;
+} | null>(null);
+
+export function useModuleFederationLoader(): {
+  start: null | (() => void);
+  increment: null | (() => void);
+  end: null | (() => void);
+  status: null | "loading" | "idle";
+  progress: null | number;
+} {
+  const contextValue = useContext(ModuleFederationLoaderContext);
+  if (!contextValue) {
+    return {
+      start: null,
+      increment: null,
+      end: null,
+      status: null,
+      progress: null,
+    };
+  }
+
+  const { progress, setProgress } = contextValue;
+
+  const start = useCallback(() => {
+    setProgress(0);
+  }, [setProgress]);
+
+  useEffect(() => {
+    const loader = setInterval(() => {
+      setProgress((progress) => {
+        if (progress >= 0 && progress < 1) {
+          return progress + 0.01;
+        }
+        if (progress >= 1) {
+          return -1;
+        }
+        return progress;
+      });
+    }, 20);
+
+    return () => clearInterval(loader);
+  }, [setProgress]);
+
+  const increment = useCallback(() => {
+    setProgress((progress) => {
+      if (progress >= 0 && progress < 0.9) {
+        return progress + 0.1;
+      }
+      return progress;
+    });
+  }, [setProgress]);
+
+  const end = useCallback(() => {
+    setProgress(-1);
+  }, [setProgress]);
+
+  const status = progress >= 0 ? "loading" : "idle";
+
+  return { start, increment, end, status, progress };
+}
+
+export function ModuleFederationLoaderProvider({
+  children,
+}: PropsWithChildren<{}>): ReactElement {
+  const [progress, setProgress] = useState<number>(-1);
+
+  return (
+    <ModuleFederationLoaderContext.Provider value={{ progress, setProgress }}>
+      {children}
+    </ModuleFederationLoaderContext.Provider>
+  );
+}
+
+function IncrementLoaderOnMountWrapper({children}: PropsWithChildren<{}>): ReactElement {
+  const {increment} = useModuleFederationLoader();
+
+  useEffect(() => {
+    if (increment) {
+      increment();
+    }
+  }, [increment]);
+
+  return <>{children}</>
+
+}
+
 export function FederatedComponent({
   url,
   scope,
   module,
   app,
   props,
-}: FederatedComponentProps & { props: any; app: SolutionUI }): ReactNode {
+}: FederatedComponentProps & { props: any; app: SolutionUI }): ReactElement {
   const { status } = useDynamicScripts({
     urls: [url],
   });
@@ -190,9 +281,11 @@ export function FederatedComponent({
     <Suspense
       fallback={<Loader size="massive" centered={true} aria-label="loading" />}
     >
-      <CurrentAppContext.Provider value={app}>
-        <Component {...props} />
-      </CurrentAppContext.Provider>
+      <IncrementLoaderOnMountWrapper>
+        <CurrentAppContext.Provider value={app}>
+          <Component {...props} />
+        </CurrentAppContext.Provider>
+      </IncrementLoaderOnMountWrapper>
     </Suspense>
   );
 }
@@ -224,29 +317,33 @@ export const ComponentWithFederatedImports = <Props extends {}>({
   renderOnError,
   componentWithInjectedImports,
   componentProps,
-  federatedImports
+  federatedImports,
 }: {
-  renderOnError: ReactNode;
+  renderOnError: ReactElement;
   componentWithInjectedImports: FunctionComponent<Props>;
   componentProps: Props;
   federatedImports: {
     remoteEntryUrl: string;
     scope: string;
     module: string;
-  }[]
-}): ReactNode => {
+  }[];
+}): ReactElement => {
   const { status } = useDynamicScripts({
-    urls: federatedImports.map(federatedImport => federatedImport.remoteEntryUrl),
+    urls: federatedImports.map(
+      (federatedImport) => federatedImport.remoteEntryUrl
+    ),
   });
 
   const Component = useMemo(
     () =>
-      lazyWithModules(componentWithInjectedImports,
-        ...federatedImports.map(federatedImport => ({
+      lazyWithModules(
+        componentWithInjectedImports,
+        ...federatedImports.map((federatedImport) => ({
           scope: federatedImport.scope,
           module: federatedImport.module,
           url: federatedImport.remoteEntryUrl,
-        }))),
+        }))
+      ),
     [JSON.stringify(federatedImports)]
   );
 
@@ -262,8 +359,10 @@ export const ComponentWithFederatedImports = <Props extends {}>({
     <Suspense
       fallback={<Loader size="massive" centered={true} aria-label="loading" />}
     >
-      {/*@ts-expect-error*/}
-      <Component {...componentProps} />
+      <IncrementLoaderOnMountWrapper>
+        {/*@ts-expect-error*/}
+        <Component {...componentProps} />
+      </IncrementLoaderOnMountWrapper>
     </Suspense>
   );
 };
