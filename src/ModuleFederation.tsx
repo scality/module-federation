@@ -8,24 +8,22 @@ import React, {
   ReactNode,
   createContext,
   useContext,
-  FunctionComponent
+  FunctionComponent,
 } from "react";
-//@ts-expect-error
-import ErrorPage500 from "@scality/core-ui/dist/components/error-pages/ErrorPage500.component";
-//@ts-expect-error
-import Loader from "@scality/core-ui/dist/components/loader/Loader.component";
+import { ErrorPage500 } from "@scality/core-ui/dist/components/error-pages/ErrorPage500.component";
+import { Loader } from "@scality/core-ui/dist/components/loader/Loader.component";
 
 type Module = any;
 
 declare var __webpack_init_sharing__: (scope: string) => Promise<void>;
 declare var __webpack_share_scopes__: { default: any };
 declare global {
-	interface Window {
-		[scope: string]: {
+  interface Window {
+    [scope: string]: {
       init: (sharedModules: any) => Promise<void>;
       get: (module: string) => () => Module;
-    }
-	}
+    };
+  }
 }
 
 export function loadModule(
@@ -63,8 +61,9 @@ export const useDynamicScripts = ({
 }: {
   urls: string[];
 }): { status: "idle" | "loading" | "success" | "error" } => {
-  const [status, setStatus] =
-    useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
 
   const isMountedRef = useRef(false);
   useEffect(() => {
@@ -224,7 +223,7 @@ export const ComponentWithFederatedImports = <Props extends {}>({
   renderOnError,
   componentWithInjectedImports,
   componentProps,
-  federatedImports
+  federatedImports,
 }: {
   renderOnError: ReactNode;
   componentWithInjectedImports: FunctionComponent<Props>;
@@ -233,20 +232,24 @@ export const ComponentWithFederatedImports = <Props extends {}>({
     remoteEntryUrl: string;
     scope: string;
     module: string;
-  }[]
+  }[];
 }): ReactNode => {
   const { status } = useDynamicScripts({
-    urls: federatedImports.map(federatedImport => federatedImport.remoteEntryUrl),
+    urls: federatedImports.map(
+      (federatedImport) => federatedImport.remoteEntryUrl
+    ),
   });
 
   const Component = useMemo(
     () =>
-      lazyWithModules(componentWithInjectedImports,
-        ...federatedImports.map(federatedImport => ({
+      lazyWithModules(
+        componentWithInjectedImports,
+        ...federatedImports.map((federatedImport) => ({
           scope: federatedImport.scope,
           module: federatedImport.module,
           url: federatedImport.remoteEntryUrl,
-        }))),
+        }))
+      ),
     [JSON.stringify(federatedImports)]
   );
 
