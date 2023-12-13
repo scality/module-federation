@@ -73,6 +73,7 @@ export const useDynamicScripts = ({
     }
     
     const allScriptsAreAlreadyLoaded = !urls.some((url) => !document.head.querySelector(`script[src="${url}"]`))
+    console.log('dynamic', allScriptsAreAlreadyLoaded, urls, status)
     if (!allScriptsAreAlreadyLoaded) {
       setStatus("loading");
     }
@@ -190,7 +191,11 @@ export function FederatedComponent({
 
   return (
     <Suspense
-      fallback={<Loader size="massive" centered={true} aria-label="loading" />}
+      fallback={() => {
+          console.log("suspended")
+          return <Loader size="massive" centered={true} aria-label="loading" />
+        }
+      }
     >
       <CurrentAppContext.Provider value={app}>
         <Component {...props} />
