@@ -71,7 +71,7 @@ export const useDynamicScripts = ({
     if (!urls || urls.length === 0) {
       return;
     }
-
+    console.log('dynamic script being loaded', urls)
     setStatus("loading");
 
     const elementsPromises = urls.flatMap((url) => {
