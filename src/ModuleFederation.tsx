@@ -134,7 +134,7 @@ export const useDynamicScripts = ({
     return () => {
       isMountedRef.current = false;
     };
-  }, [JSON.stringify(urls), isMountedRef]);
+  }, [JSON.stringify(urls)]);
 
   return {
     status,
