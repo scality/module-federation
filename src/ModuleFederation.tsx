@@ -89,21 +89,36 @@ export const useDynamicScripts = ({
         //@ts-expect-error
         (scriptElement) => scriptElement.attributes.src?.value === url
       );
+      let element: HTMLScriptElement;
       if (existingElement) {
-        return [Promise.resolve()];
+        if (existingElement.attributes.getNamedItem("data-loaded")) {
+          return [Promise.resolve()];
+        }
+
+        element = existingElement;
+      } else {
+        element = document.createElement("script");
+        element.src = url;
+        element.type = "text/javascript";
+        element.async = true;
       }
-      const element = document.createElement("script");
-      element.src = url;
-      element.type = "text/javascript";
-      element.async = true;
 
       const promise = new Promise((resolve, reject) => {
-        element.onload = () => {
+        const previousOnload = element.onload;
+        element.onload = (evt) => {
+          if (previousOnload) {
+            // @ts-expect-error on this context type conflict
+            previousOnload(evt);
+          }
           console.log(`Dynamic Script Loaded: ${url}`);
           resolve(element);
         };
 
-        element.onerror = () => {
+        const previousOnerror = element.onerror;
+        element.onerror = (evt) => {
+          if (previousOnerror) {
+            previousOnerror(evt);
+          }
           console.error(`Dynamic Script Error: ${url}`);
           reject();
         };
@@ -120,8 +135,13 @@ export const useDynamicScripts = ({
     });
 
     Promise.all(elementsPromises)
-      .then(() => {
+      .then((scriptElements) => {
         if (isMountedRef.current) {
+          scriptElements.forEach((scriptElement) => {
+            if (scriptElement instanceof HTMLScriptElement) {
+              scriptElement.setAttribute("data-loaded", "true");
+            }
+          });
           setStatus("success");
         }
       })
