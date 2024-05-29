@@ -1,6 +1,6 @@
 {
   "name": "@scality/module-federation",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "",
   "main": "build/ModuleFederation.js",
   "scripts": {
@@ -8,7 +8,16 @@
     "prepare": "npm run build",
     "test": "jest"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scality/module-federation.git"
+  },
   "author": "",
+  "license": "SEE LICENSE IN LICENSE",
+  "bugs": {
+    "url": "https://github.com/scality/module-federation/issues"
+  },
+  "homepage": "https://github.com/scality/module-federation#readme",
   "dependencies": {
     "@scality/core-ui": "^0.116.0",
     "polished": "^4.1.3",
@@ -28,5 +37,8 @@
   "peerDependencies": {
     "react": "^17.0.2",
     "react-dom": "^17.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
