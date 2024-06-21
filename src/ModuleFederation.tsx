@@ -1,29 +1,37 @@
+import {
+  loadRemote,
+  registerRemotes,
+} from "@module-federation/enhanced/runtime";
 import React, {
-  useEffect,
-  useState,
-  Suspense,
-  lazy,
-  useMemo,
-  useRef,
-  ReactNode,
-  createContext,
-  useContext,
   FunctionComponent,
+  ReactNode,
+  Suspense,
+  createContext,
+  lazy,
+  useContext,
+  useMemo,
 } from "react";
-import { ErrorPage500 } from "@scality/core-ui/dist/components/error-pages/ErrorPage500.component";
-import { Loader } from "@scality/core-ui/dist/components/loader/Loader.component";
-
 type Module = any;
 
-declare var __webpack_init_sharing__: (scope: string) => Promise<void>;
-declare var __webpack_share_scopes__: { default: any };
-declare global {
-  interface Window {
-    [scope: string]: {
-      init: (sharedModules: any) => Promise<void>;
-      get: (module: string) => () => Module;
-    };
+const registeredApps: string[] = [];
+export function registerAndLoadModule(
+  scope: string,
+  module: string,
+  url: string
+): () => Promise<Module> {
+  if (registeredApps.includes(scope)) {
+    return loadModule(scope, module);
   }
+
+  registeredApps.push(scope);
+  registerRemotes([
+    {
+      name: scope,
+      entry: url,
+    },
+  ]);
+
+  return loadModule(scope, module);
 }
 
 export function loadModule(
@@ -31,14 +39,11 @@ export function loadModule(
   module: string
 ): () => Promise<Module> {
   return async () => {
-    // Initializes the share scope. This fills it with known provided modules from this build and all remotesk
-    await __webpack_init_sharing__("default");
-    const container = window[scope]; // or get the container somewhere else
-    // Initialize the container, it may provide shared modules
-    await container.init(__webpack_share_scopes__.default);
-    const factory = await window[scope].get(module);
-    const Module = factory();
-    return Module;
+    const moduleAbsolutePath = module.substring(1);
+
+    const remoteUrl = `${scope}${moduleAbsolutePath}`;
+
+    return loadRemote(remoteUrl);
   };
 }
 
@@ -54,111 +59,6 @@ export const useCurrentApp = () => {
   }
 
   return contextValue;
-};
-
-export const useDynamicScripts = ({
-  urls,
-}: {
-  urls: string[];
-}): { status: "idle" | "loading" | "success" | "error" } => {
-  const [status, setStatus] = useState<
-    "idle" | "loading" | "success" | "error"
-  >("idle");
-
-  const isMountedRef = useRef(false);
-  useEffect(() => {
-    isMountedRef.current = true;
-    if (!urls || urls.length === 0) {
-      return;
-    }
-
-    setStatus("loading");
-
-    const elementsPromises = urls.flatMap((url) => {
-      if (typeof url !== "string") {
-        throw new Error(
-          `Invalid url, can't load a dynamic script with url '${url}'`
-        );
-      }
-
-      const head = document.head;
-      // $flow-disable-line
-      const existingElement = [
-        ...(head?.querySelectorAll("script") || []),
-      ].find(
-        //@ts-expect-error
-        (scriptElement) => scriptElement.attributes.src?.value === url
-      );
-      let element: HTMLScriptElement;
-      if (existingElement) {
-        if (existingElement.attributes.getNamedItem("data-loaded")) {
-          return [Promise.resolve()];
-        }
-
-        element = existingElement;
-      } else {
-        element = document.createElement("script");
-        element.src = url;
-        element.type = "text/javascript";
-        element.async = true;
-      }
-
-      const promise = new Promise((resolve, reject) => {
-        const previousOnload = element.onload;
-        element.onload = (evt) => {
-          if (previousOnload) {
-            // @ts-expect-error on this context type conflict
-            previousOnload(evt);
-          }
-          console.log(`Dynamic Script Loaded: ${url}`);
-          resolve(element);
-        };
-
-        const previousOnerror = element.onerror;
-        element.onerror = (evt) => {
-          if (previousOnerror) {
-            previousOnerror(evt);
-          }
-          console.error(`Dynamic Script Error: ${url}`);
-          reject();
-        };
-
-        if (!document.head) {
-          console.error(`document.head is undefined`);
-          return reject();
-        }
-
-        document.head.appendChild(element);
-      });
-
-      return [promise];
-    });
-
-    Promise.all(elementsPromises)
-      .then((scriptElements) => {
-        if (isMountedRef.current) {
-          scriptElements.forEach((scriptElement) => {
-            if (scriptElement instanceof HTMLScriptElement) {
-              scriptElement.setAttribute("data-loaded", "true");
-            }
-          });
-          setStatus("success");
-        }
-      })
-      .catch(() => {
-        if (isMountedRef.current) {
-          setStatus("error");
-        }
-      });
-
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, [JSON.stringify(urls), isMountedRef]);
-
-  return {
-    status,
-  };
 };
 
 export type FederatedComponentProps = {
@@ -180,35 +80,23 @@ export function FederatedComponent({
   scope,
   module,
   app,
+  renderOnLoading,
   props,
-}: FederatedComponentProps & { props: any; app: SolutionUI }): ReactNode {
-  const { status } = useDynamicScripts({
-    urls: [url],
-  });
-
+}: FederatedComponentProps & {
+  props: any;
+  app: SolutionUI;
+  renderOnLoading?: ReactNode;
+}): ReactNode {
   const Component = useMemo(() => {
-    if (status === "success") {
-      return lazy(loadModule(scope, module));
-    }
-    return () => <div></div>;
-  }, [scope, module, status]);
+    return lazy(registerAndLoadModule(scope, module, url));
+  }, [scope, module, url]);
 
   if (!url || !scope || !module) {
     throw new Error("Can't federate a component without url, scope and module");
   }
 
-  if (status === "loading" || status === "idle") {
-    return <Loader size="massive" centered={true} aria-label="loading" />; // TODO display the previous module while lazy loading the new one
-  }
-
-  if (status === "error") {
-    return <ErrorPage500 data-cy="sc-error-page500" />;
-  }
-
   return (
-    <Suspense
-      fallback={<Loader size="massive" centered={true} aria-label="loading" />}
-    >
+    <Suspense fallback={renderOnLoading ?? <>Loading...</>}>
       <CurrentAppContext.Provider value={app}>
         <Component {...props} />
       </CurrentAppContext.Provider>
@@ -222,7 +110,9 @@ export const lazyWithModules = <Props extends {}>(
 ) => {
   return React.lazy(async () => {
     const loadedModules = await Promise.all(
-      modules.map((mod) => loadModule(mod.scope, mod.module)())
+      modules.map((mod) => {
+        return registerAndLoadModule(mod.scope, mod.module, mod.url)();
+      })
     );
     const moduleExports = loadedModules.reduce(
       (current, loadedModule, index) => ({
@@ -241,11 +131,13 @@ export const lazyWithModules = <Props extends {}>(
 
 export const ComponentWithFederatedImports = <Props extends {}>({
   renderOnError,
+  renderOnLoading,
   componentWithInjectedImports,
   componentProps,
   federatedImports,
 }: {
   renderOnError: ReactNode;
+  renderOnLoading?: ReactNode;
   componentWithInjectedImports: FunctionComponent<Props>;
   componentProps: Props;
   federatedImports: {
@@ -254,12 +146,6 @@ export const ComponentWithFederatedImports = <Props extends {}>({
     module: string;
   }[];
 }): ReactNode => {
-  const { status } = useDynamicScripts({
-    urls: federatedImports.map(
-      (federatedImport) => federatedImport.remoteEntryUrl
-    ),
-  });
-
   const Component = useMemo(
     () =>
       lazyWithModules(
@@ -273,18 +159,8 @@ export const ComponentWithFederatedImports = <Props extends {}>({
     [JSON.stringify(federatedImports)]
   );
 
-  if (status === "loading" || status === "idle") {
-    return <Loader size="massive" centered={true} aria-label="loading" />; // TODO display the previous module while lazy loading the new one
-  }
-
-  if (status === "error" && renderOnError) {
-    return renderOnError;
-  }
-
   return (
-    <Suspense
-      fallback={<Loader size="massive" centered={true} aria-label="loading" />}
-    >
+    <Suspense fallback={renderOnLoading ?? <>Loading...</>}>
       {/*@ts-expect-error*/}
       <Component {...componentProps} />
     </Suspense>
