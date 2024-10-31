@@ -86,7 +86,7 @@ export function FederatedComponent({
   props: any;
   app: SolutionUI;
   renderOnLoading?: ReactNode;
-}): ReactNode {
+}) {
   const Component = useMemo(() => {
     return lazy(registerAndLoadModule(scope, module, url));
   }, [scope, module, url]);
@@ -145,7 +145,7 @@ export const ComponentWithFederatedImports = <Props extends {}>({
     scope: string;
     module: string;
   }[];
-}): ReactNode => {
+}) => {
   const Component = useMemo(
     () =>
       lazyWithModules(
