@@ -136,9 +136,11 @@ export const ComponentWithFederatedImports = <Props extends {}>({
   componentProps,
   federatedImports,
 }: {
-  renderOnError: ReactNode;
+  renderOnError?: ReactNode;
   renderOnLoading?: ReactNode;
-  componentWithInjectedImports: FunctionComponent<Props>;
+  componentWithInjectedImports: FunctionComponent<
+    Props & { moduleExports: Record<string, unknown> }
+  >;
   componentProps: Props;
   federatedImports: {
     remoteEntryUrl: string;
