@@ -105,7 +105,7 @@ export function FederatedComponent({
 }
 
 export const lazyWithModules = <Props extends {}>(
-  functionComponent: FunctionComponent<Props>,
+  functionComponent: FunctionComponent<React.PropsWithChildren<Props>>,
   ...modules: { module: string; url: string; scope: string }[]
 ) => {
   return React.lazy(async () => {
@@ -139,7 +139,7 @@ export const ComponentWithFederatedImports = <Props extends {}>({
   renderOnError?: ReactNode;
   renderOnLoading?: ReactNode;
   componentWithInjectedImports: FunctionComponent<
-    Props & { moduleExports: Record<string, unknown> }
+    React.PropsWithChildren<Props> & { moduleExports: Record<string, unknown> }
   >;
   componentProps: Props;
   federatedImports: {
