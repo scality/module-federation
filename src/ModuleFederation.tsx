@@ -99,9 +99,14 @@ export function FederatedComponent({
 
   return (
     <Suspense fallback={renderOnLoading ?? <>Loading...</>}>
-      <CurrentAppContext.Provider value={app}>
-        <Component {...props} />
-      </CurrentAppContext.Provider>
+      <ShellHooksProvider
+        shellHooks={props.shellHooks}
+        shellAlerts={props.shellAlerts}
+      >
+        <CurrentAppContext.Provider value={app}>
+          <Component {...props} />
+        </CurrentAppContext.Provider>
+      </ShellHooksProvider>
     </Suspense>
   );
 }
