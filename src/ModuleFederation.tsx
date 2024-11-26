@@ -3,6 +3,7 @@ import {
   registerRemotes,
 } from "@module-federation/enhanced/runtime";
 import React, {
+  FC,
   FunctionComponent,
   ReactNode,
   Suspense,
@@ -10,6 +11,7 @@ import React, {
   lazy,
   useContext,
   useMemo,
+  useSyncExternalStore,
 } from "react";
 type Module = any;
 
@@ -167,4 +169,101 @@ export const ComponentWithFederatedImports = <Props extends {}>({
       <Component {...componentProps} />
     </Suspense>
   );
+};
+
+type ShellHooks = ReturnType<any>;
+type ShellAlerts = ReturnType<any>;
+
+type Listener = () => void;
+
+const createShellHooksStore = () => {
+  let shellHooks: ShellHooks | null = null;
+
+  const listeners: Set<Listener> = new Set();
+
+  return {
+    getShellHooks: () => shellHooks,
+
+    subscribe: (listener: Listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+
+    setShellHooks: (newHooks: ShellHooks) => {
+      if (shellHooks !== newHooks) {
+        shellHooks = newHooks;
+        listeners.forEach((listener) => listener());
+      }
+    },
+  };
+};
+
+const createShellAlertsStore = () => {
+  let shellAlerts: ShellAlerts | null = null;
+  const listeners: Set<Listener> = new Set();
+
+  return {
+    getShellAlerts: () => shellAlerts,
+
+    subscribe: (listener: Listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+
+    setShellAlerts: (newAlerts: ShellAlerts) => {
+      if (shellAlerts !== newAlerts) {
+        shellAlerts = newAlerts;
+        listeners.forEach((listener) => listener());
+      }
+    },
+  };
+};
+
+export const shellHooksStore = createShellHooksStore();
+export const shellAlertsStore = createShellAlertsStore();
+
+export const useShellHooks = (): ShellHooks => {
+  const hooks = useSyncExternalStore(
+    shellHooksStore.subscribe,
+    shellHooksStore.getShellHooks
+  );
+
+  if (!hooks) {
+    throw new Error(
+      "useShellHooks must be used within a ShellHooksProvider and initialized with valid hooks."
+    );
+  }
+
+  return hooks;
+};
+
+export const useShellAlerts = (): ShellAlerts => {
+  const alerts = useSyncExternalStore(
+    shellAlertsStore.subscribe,
+    shellAlertsStore.getShellAlerts
+  );
+
+  if (!alerts) {
+    throw new Error(
+      "useShellAlerts must be used within a ShellHooksProvider and initialized with valid alerts."
+    );
+  }
+
+  return alerts;
+};
+
+export const ShellHooksProvider: FC<{
+  shellHooks: ShellHooks;
+  shellAlerts: ShellAlerts;
+  children: ReactNode;
+}> = ({ shellHooks, shellAlerts, children }) => {
+  useMemo(() => {
+    shellHooksStore.setShellHooks(shellHooks);
+    shellAlertsStore.setShellAlerts(shellAlerts);
+  }, [shellHooks, shellAlerts]);
+  return <>{children}</>;
 };
