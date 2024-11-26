@@ -67,11 +67,6 @@ export type FederatedComponentProps = {
   module: string;
 };
 
-export type FederateAppProps<T, U> = {
-  shellHooks: T;
-  shellAlerts: U;
-};
-
 export type SolutionUI = {
   kind: string;
   url: string;
@@ -80,7 +75,7 @@ export type SolutionUI = {
   appHistoryBasePath: string;
 };
 
-export function FederatedComponent<T, U>({
+export function FederatedComponent({
   url,
   scope,
   module,
@@ -88,7 +83,7 @@ export function FederatedComponent<T, U>({
   renderOnLoading,
   props,
 }: FederatedComponentProps & {
-  props: FederateAppProps<T, U>;
+  props: any;
   app: SolutionUI;
   renderOnLoading?: ReactNode;
 }) {
