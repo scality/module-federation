@@ -38,4 +38,36 @@ export declare const ComponentWithFederatedImports: <Props extends {}>({ renderO
         module: string;
     }[];
 }) => React.JSX.Element;
+type ShellHooks<T extends {
+    shellHooks: any;
+}> = T["shellHooks"];
+type ShellAlerts<T extends {
+    shellAlerts: any;
+}> = T["shellAlerts"];
+type Listener = () => void;
+export declare const shellHooksStore: {
+    getShellHooks: () => any;
+    subscribe: (listener: Listener) => () => void;
+    setShellHooks: (newHooks: any) => void;
+};
+export declare const shellAlertsStore: {
+    getShellAlerts: () => any;
+    subscribe: (listener: Listener) => () => void;
+    setShellAlerts: (newAlerts: any) => void;
+};
+export declare const useShellHooks: <T extends {
+    shellHooks: any;
+}>() => ShellHooks<T>;
+export declare const useShellAlerts: <T extends {
+    shellAlerts: any;
+}>() => ShellAlerts<T>;
+export declare const ShellHooksProvider: <T extends {
+    shellHooks: any;
+}, K extends {
+    shellAlerts: any;
+}>({ shellHooks, shellAlerts, children, }: {
+    shellHooks: ShellHooks<T>;
+    shellAlerts: ShellAlerts<K>;
+    children: ReactNode;
+}) => React.JSX.Element;
 export {};

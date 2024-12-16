@@ -23,7 +23,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ComponentWithFederatedImports = exports.lazyWithModules = exports.FederatedComponent = exports.useCurrentApp = exports.loadModule = exports.registerAndLoadModule = void 0;
+exports.ShellHooksProvider = exports.useShellAlerts = exports.useShellHooks = exports.shellAlertsStore = exports.shellHooksStore = exports.ComponentWithFederatedImports = exports.lazyWithModules = exports.FederatedComponent = exports.useCurrentApp = exports.loadModule = exports.registerAndLoadModule = void 0;
 const runtime_1 = require("@module-federation/enhanced/runtime");
 const react_1 = __importStar(require("react"));
 const registeredApps = [];
@@ -66,8 +66,9 @@ function FederatedComponent({ url, scope, module, app, renderOnLoading, props, }
         throw new Error("Can't federate a component without url, scope and module");
     }
     return (react_1.default.createElement(react_1.Suspense, { fallback: renderOnLoading !== null && renderOnLoading !== void 0 ? renderOnLoading : react_1.default.createElement(react_1.default.Fragment, null, "Loading...") },
-        react_1.default.createElement(CurrentAppContext.Provider, { value: app },
-            react_1.default.createElement(Component, { ...props }))));
+        react_1.default.createElement(exports.ShellHooksProvider, { shellHooks: props.shellHooks, shellAlerts: props.shellAlerts },
+            react_1.default.createElement(CurrentAppContext.Provider, { value: app },
+                react_1.default.createElement(Component, { ...props })))));
 }
 exports.FederatedComponent = FederatedComponent;
 const lazyWithModules = (functionComponent, ...modules) => {
@@ -96,3 +97,67 @@ const ComponentWithFederatedImports = ({ renderOnError, renderOnLoading, compone
         react_1.default.createElement(Component, { ...componentProps })));
 };
 exports.ComponentWithFederatedImports = ComponentWithFederatedImports;
+const createShellHooksStore = () => {
+    let shellHooks = null;
+    const listeners = new Set();
+    return {
+        getShellHooks: () => shellHooks,
+        subscribe: (listener) => {
+            listeners.add(listener);
+            return () => {
+                listeners.delete(listener);
+            };
+        },
+        setShellHooks: (newHooks) => {
+            if (shellHooks !== newHooks) {
+                shellHooks = newHooks;
+                listeners.forEach((listener) => listener());
+            }
+        },
+    };
+};
+const createShellAlertsStore = () => {
+    let shellAlerts = null;
+    const listeners = new Set();
+    return {
+        getShellAlerts: () => shellAlerts,
+        subscribe: (listener) => {
+            listeners.add(listener);
+            return () => {
+                listeners.delete(listener);
+            };
+        },
+        setShellAlerts: (newAlerts) => {
+            if (shellAlerts !== newAlerts) {
+                shellAlerts = newAlerts;
+                listeners.forEach((listener) => listener());
+            }
+        },
+    };
+};
+exports.shellHooksStore = createShellHooksStore();
+exports.shellAlertsStore = createShellAlertsStore();
+const useShellHooks = () => {
+    const hooks = (0, react_1.useSyncExternalStore)(exports.shellHooksStore.subscribe, exports.shellHooksStore.getShellHooks);
+    if (!hooks) {
+        throw new Error("useShellHooks must be used within a ShellHooksProvider and initialized with valid hooks.");
+    }
+    return hooks;
+};
+exports.useShellHooks = useShellHooks;
+const useShellAlerts = () => {
+    const alerts = (0, react_1.useSyncExternalStore)(exports.shellAlertsStore.subscribe, exports.shellAlertsStore.getShellAlerts);
+    if (!alerts) {
+        throw new Error("useShellAlerts must be used within a ShellHooksProvider and initialized with valid alerts.");
+    }
+    return alerts;
+};
+exports.useShellAlerts = useShellAlerts;
+const ShellHooksProvider = ({ shellHooks, shellAlerts, children, }) => {
+    (0, react_1.useMemo)(() => {
+        exports.shellHooksStore.setShellHooks(shellHooks);
+        exports.shellAlertsStore.setShellAlerts(shellAlerts);
+    }, [shellHooks, shellAlerts]);
+    return react_1.default.createElement(react_1.default.Fragment, null, children);
+};
+exports.ShellHooksProvider = ShellHooksProvider;

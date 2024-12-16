@@ -176,13 +176,13 @@ export const ComponentWithFederatedImports = <Props extends {}>({
   );
 };
 
-type ShellHooks = ReturnType<any>;
-type ShellAlerts = ReturnType<any>;
+type ShellHooks<T extends { shellHooks: any }> = T["shellHooks"];
+type ShellAlerts<T extends { shellAlerts: any }> = T["shellAlerts"];
 
 type Listener = () => void;
 
-const createShellHooksStore = () => {
-  let shellHooks: ShellHooks | null = null;
+const createShellHooksStore = <T extends { shellHooks: any }>() => {
+  let shellHooks: ShellHooks<T> | null = null;
 
   const listeners: Set<Listener> = new Set();
 
@@ -196,7 +196,7 @@ const createShellHooksStore = () => {
       };
     },
 
-    setShellHooks: (newHooks: ShellHooks) => {
+    setShellHooks: (newHooks: ShellHooks<T>) => {
       if (shellHooks !== newHooks) {
         shellHooks = newHooks;
         listeners.forEach((listener) => listener());
@@ -205,8 +205,8 @@ const createShellHooksStore = () => {
   };
 };
 
-const createShellAlertsStore = () => {
-  let shellAlerts: ShellAlerts | null = null;
+const createShellAlertsStore = <T extends { shellAlerts: any }>() => {
+  let shellAlerts: ShellAlerts<T> | null = null;
   const listeners: Set<Listener> = new Set();
 
   return {
@@ -219,7 +219,7 @@ const createShellAlertsStore = () => {
       };
     },
 
-    setShellAlerts: (newAlerts: ShellAlerts) => {
+    setShellAlerts: (newAlerts: ShellAlerts<T>) => {
       if (shellAlerts !== newAlerts) {
         shellAlerts = newAlerts;
         listeners.forEach((listener) => listener());
@@ -231,7 +231,9 @@ const createShellAlertsStore = () => {
 export const shellHooksStore = createShellHooksStore();
 export const shellAlertsStore = createShellAlertsStore();
 
-export const useShellHooks = (): ShellHooks => {
+export const useShellHooks = <
+  T extends { shellHooks: any }
+>(): ShellHooks<T> => {
   const hooks = useSyncExternalStore(
     shellHooksStore.subscribe,
     shellHooksStore.getShellHooks
@@ -246,7 +248,9 @@ export const useShellHooks = (): ShellHooks => {
   return hooks;
 };
 
-export const useShellAlerts = (): ShellAlerts => {
+export const useShellAlerts = <
+  T extends { shellAlerts: any }
+>(): ShellAlerts<T> => {
   const alerts = useSyncExternalStore(
     shellAlertsStore.subscribe,
     shellAlertsStore.getShellAlerts
@@ -261,11 +265,18 @@ export const useShellAlerts = (): ShellAlerts => {
   return alerts;
 };
 
-export const ShellHooksProvider: FC<{
-  shellHooks: ShellHooks;
-  shellAlerts: ShellAlerts;
+export const ShellHooksProvider = <
+  T extends { shellHooks: any },
+  K extends { shellAlerts: any }
+>({
+  shellHooks,
+  shellAlerts,
+  children,
+}: {
+  shellHooks: ShellHooks<T>;
+  shellAlerts: ShellAlerts<K>;
   children: ReactNode;
-}> = ({ shellHooks, shellAlerts, children }) => {
+}) => {
   useMemo(() => {
     shellHooksStore.setShellHooks(shellHooks);
     shellAlertsStore.setShellAlerts(shellAlerts);
