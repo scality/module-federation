@@ -3,6 +3,7 @@ import {
   registerRemotes,
 } from "@module-federation/enhanced/runtime";
 import React, {
+  FC,
   FunctionComponent,
   ReactNode,
   Suspense,
@@ -10,7 +11,9 @@ import React, {
   lazy,
   useContext,
   useMemo,
+  useSyncExternalStore,
 } from "react";
+import { NavigateOptions, To, useNavigate } from "react-router";
 type Module = any;
 
 const registeredApps: string[] = [];
@@ -97,15 +100,20 @@ export function FederatedComponent({
 
   return (
     <Suspense fallback={renderOnLoading ?? <>Loading...</>}>
-      <CurrentAppContext.Provider value={app}>
-        <Component {...props} />
-      </CurrentAppContext.Provider>
+      <ShellHooksProvider
+        shellHooks={props.shellHooks}
+        shellAlerts={props.shellAlerts}
+      >
+        <CurrentAppContext.Provider value={app}>
+          <Component {...props} />
+        </CurrentAppContext.Provider>
+      </ShellHooksProvider>
     </Suspense>
   );
 }
 
 export const lazyWithModules = <Props extends {}>(
-  functionComponent: FunctionComponent<Props>,
+  functionComponent: FunctionComponent<React.PropsWithChildren<Props>>,
   ...modules: { module: string; url: string; scope: string }[]
 ) => {
   return React.lazy(async () => {
@@ -139,7 +147,7 @@ export const ComponentWithFederatedImports = <Props extends {}>({
   renderOnError?: ReactNode;
   renderOnLoading?: ReactNode;
   componentWithInjectedImports: FunctionComponent<
-    Props & { moduleExports: Record<string, unknown> }
+    React.PropsWithChildren<Props> & { moduleExports: Record<string, unknown> }
   >;
   componentProps: Props;
   federatedImports: {
@@ -167,4 +175,127 @@ export const ComponentWithFederatedImports = <Props extends {}>({
       <Component {...componentProps} />
     </Suspense>
   );
+};
+
+type ShellHooks<T extends { shellHooks: any }> = T["shellHooks"];
+type ShellAlerts<T extends { shellAlerts: any }> = T["shellAlerts"];
+
+type Listener = () => void;
+
+const createShellHooksStore = <T extends { shellHooks: any }>() => {
+  let shellHooks: ShellHooks<T> | null = null;
+
+  const listeners: Set<Listener> = new Set();
+
+  return {
+    getShellHooks: () => shellHooks,
+
+    subscribe: (listener: Listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+
+    setShellHooks: (newHooks: ShellHooks<T>) => {
+      if (shellHooks !== newHooks) {
+        shellHooks = newHooks;
+        listeners.forEach((listener) => listener());
+      }
+    },
+  };
+};
+
+const createShellAlertsStore = <T extends { shellAlerts: any }>() => {
+  let shellAlerts: ShellAlerts<T> | null = null;
+  const listeners: Set<Listener> = new Set();
+
+  return {
+    getShellAlerts: () => shellAlerts,
+
+    subscribe: (listener: Listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+
+    setShellAlerts: (newAlerts: ShellAlerts<T>) => {
+      if (shellAlerts !== newAlerts) {
+        shellAlerts = newAlerts;
+        listeners.forEach((listener) => listener());
+      }
+    },
+  };
+};
+
+export const shellHooksStore = createShellHooksStore();
+export const shellAlertsStore = createShellAlertsStore();
+
+export const useShellHooks = <
+  T extends { shellHooks: any }
+>(): ShellHooks<T> => {
+  const hooks = useSyncExternalStore(
+    shellHooksStore.subscribe,
+    shellHooksStore.getShellHooks
+  );
+
+  if (!hooks) {
+    throw new Error(
+      "useShellHooks must be used within a ShellHooksProvider and initialized with valid hooks."
+    );
+  }
+
+  return hooks;
+};
+
+export const useShellAlerts = <
+  T extends { shellAlerts: any }
+>(): ShellAlerts<T> => {
+  const alerts = useSyncExternalStore(
+    shellAlertsStore.subscribe,
+    shellAlertsStore.getShellAlerts
+  );
+
+  if (!alerts) {
+    throw new Error(
+      "useShellAlerts must be used within a ShellHooksProvider and initialized with valid alerts."
+    );
+  }
+
+  return alerts;
+};
+
+export const ShellHooksProvider = <
+  T extends { shellHooks: any },
+  K extends { shellAlerts: any }
+>({
+  shellHooks,
+  shellAlerts,
+  children,
+}: {
+  shellHooks: ShellHooks<T>;
+  shellAlerts: ShellAlerts<K>;
+  children: ReactNode;
+}) => {
+  useMemo(() => {
+    if (shellHooks) {
+      shellHooksStore.setShellHooks(shellHooks);
+    }
+    if (shellAlerts) {
+      shellAlertsStore.setShellAlerts(shellAlerts);
+    }
+  }, [shellHooks, shellAlerts]);
+  return <>{children}</>;
+};
+
+export const useBasenameRelativeNavigate = () => {
+  const originalNavigate = useNavigate();
+  const { appHistoryBasePath } = useCurrentApp();
+
+  const navigate = (to: To, options?: NavigateOptions) => {
+    return originalNavigate(`${appHistoryBasePath}${to}`, options);
+  };
+
+  return navigate;
 };
