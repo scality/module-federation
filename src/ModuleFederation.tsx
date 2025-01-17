@@ -13,6 +13,7 @@ import React, {
   useMemo,
   useSyncExternalStore,
 } from "react";
+import { NavigateOptions, To, useNavigate } from "react-router";
 type Module = any;
 
 const registeredApps: string[] = [];
@@ -286,4 +287,15 @@ export const ShellHooksProvider = <
     }
   }, [shellHooks, shellAlerts]);
   return <>{children}</>;
+};
+
+export const useBasenameRelativeNavigate = () => {
+  const originalNavigate = useNavigate();
+  const { appHistoryBasePath } = useCurrentApp();
+
+  const navigate = (to: To, options?: NavigateOptions) => {
+    return originalNavigate(`${appHistoryBasePath}${to}`, options);
+  };
+
+  return navigate;
 };
