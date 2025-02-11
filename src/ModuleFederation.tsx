@@ -180,66 +180,13 @@ export const ComponentWithFederatedImports = <Props extends {}>({
 type ShellHooks<T extends { shellHooks: any }> = T["shellHooks"];
 type ShellAlerts<T extends { shellAlerts: any }> = T["shellAlerts"];
 
-type Listener = () => void;
-
-const createShellHooksStore = <T extends { shellHooks: any }>() => {
-  let shellHooks: ShellHooks<T> | null = null;
-
-  const listeners: Set<Listener> = new Set();
-
-  return {
-    getShellHooks: () => shellHooks,
-
-    subscribe: (listener: Listener) => {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
-
-    setShellHooks: (newHooks: ShellHooks<T>) => {
-      if (shellHooks !== newHooks) {
-        shellHooks = newHooks;
-        listeners.forEach((listener) => listener());
-      }
-    },
-  };
-};
-
-const createShellAlertsStore = <T extends { shellAlerts: any }>() => {
-  let shellAlerts: ShellAlerts<T> | null = null;
-  const listeners: Set<Listener> = new Set();
-
-  return {
-    getShellAlerts: () => shellAlerts,
-
-    subscribe: (listener: Listener) => {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
-
-    setShellAlerts: (newAlerts: ShellAlerts<T>) => {
-      if (shellAlerts !== newAlerts) {
-        shellAlerts = newAlerts;
-        listeners.forEach((listener) => listener());
-      }
-    },
-  };
-};
-
-export const shellHooksStore = createShellHooksStore();
-export const shellAlertsStore = createShellAlertsStore();
+const shellHooksContext = createContext<ShellHooks<any> | null>(null);
+const shellAlertsContext = createContext<ShellAlerts<any> | null>(null);
 
 export const useShellHooks = <
   T extends { shellHooks: any }
 >(): ShellHooks<T> => {
-  const hooks = useSyncExternalStore(
-    shellHooksStore.subscribe,
-    shellHooksStore.getShellHooks
-  );
-
+  const hooks = useContext(shellHooksContext);
   if (!hooks) {
     throw new Error(
       "useShellHooks must be used within a ShellHooksProvider and initialized with valid hooks."
@@ -252,10 +199,7 @@ export const useShellHooks = <
 export const useShellAlerts = <
   T extends { shellAlerts: any }
 >(): ShellAlerts<T> => {
-  const alerts = useSyncExternalStore(
-    shellAlertsStore.subscribe,
-    shellAlertsStore.getShellAlerts
-  );
+  const alerts = useContext(shellAlertsContext);
 
   if (!alerts) {
     throw new Error(
@@ -278,15 +222,13 @@ export const ShellHooksProvider = <
   shellAlerts: ShellAlerts<K>;
   children: ReactNode;
 }) => {
-  useMemo(() => {
-    if (shellHooks) {
-      shellHooksStore.setShellHooks(shellHooks);
-    }
-    if (shellAlerts) {
-      shellAlertsStore.setShellAlerts(shellAlerts);
-    }
-  }, [shellHooks, shellAlerts]);
-  return <>{children}</>;
+  return (
+    <shellHooksContext.Provider value={shellHooks}>
+      <shellAlertsContext.Provider value={shellAlerts}>
+        {children}
+      </shellAlertsContext.Provider>
+    </shellHooksContext.Provider>
+  );
 };
 
 export const useBasenameRelativeNavigate = () => {
