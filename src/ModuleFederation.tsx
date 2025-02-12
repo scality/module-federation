@@ -6,12 +6,13 @@ import React, {
   ComponentType,
   FC,
   FunctionComponent,
+  LazyExoticComponent,
   ReactNode,
   Suspense,
   createContext,
   lazy,
   useContext,
-  useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from "react";
@@ -93,7 +94,7 @@ export function FederatedComponent({
   renderOnLoading?: ReactNode;
 }) {
   const [Component, setComponent] = useState<ComponentType | null>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const Comp = lazy(registerAndLoadModule(scope, module, url));
     setComponent(() => Comp);
   }, [scope, module, url]);
@@ -160,23 +161,24 @@ export const ComponentWithFederatedImports = <Props extends {}>({
     module: string;
   }[];
 }) => {
-  const Component = useMemo(
-    () =>
-      lazyWithModules(
-        componentWithInjectedImports,
-        ...federatedImports.map((federatedImport) => ({
-          scope: federatedImport.scope,
-          module: federatedImport.module,
-          url: federatedImport.remoteEntryUrl,
-        }))
-      ),
-    [JSON.stringify(federatedImports)]
+  const [Component, setComponent] = useState<LazyExoticComponent<any> | null>(
+    null
   );
+  useLayoutEffect(() => {
+    const Comp = lazyWithModules(
+      componentWithInjectedImports,
+      ...federatedImports.map((federatedImport) => ({
+        scope: federatedImport.scope,
+        module: federatedImport.module,
+        url: federatedImport.remoteEntryUrl,
+      }))
+    );
+    setComponent(() => Comp);
+  }, [JSON.stringify(federatedImports)]);
 
   return (
     <Suspense fallback={renderOnLoading ?? <>Loading...</>}>
-      {/*@ts-expect-error*/}
-      <Component {...componentProps} />
+      {Component && <Component {...componentProps} />}
     </Suspense>
   );
 };
