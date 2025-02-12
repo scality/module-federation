@@ -3,6 +3,7 @@ import {
   registerRemotes,
 } from "@module-federation/enhanced/runtime";
 import React, {
+  ComponentType,
   FC,
   FunctionComponent,
   ReactNode,
@@ -10,8 +11,9 @@ import React, {
   createContext,
   lazy,
   useContext,
+  useEffect,
   useMemo,
-  useSyncExternalStore,
+  useState,
 } from "react";
 import { NavigateOptions, To, useNavigate } from "react-router";
 type Module = any;
@@ -90,8 +92,10 @@ export function FederatedComponent({
   app: SolutionUI;
   renderOnLoading?: ReactNode;
 }) {
-  const Component = useMemo(() => {
-    return lazy(registerAndLoadModule(scope, module, url));
+  const [Component, setComponent] = useState<ComponentType | null>(null);
+  useEffect(() => {
+    const Comp = lazy(registerAndLoadModule(scope, module, url));
+    setComponent(() => Comp);
   }, [scope, module, url]);
 
   if (!url || !scope || !module) {
@@ -105,7 +109,7 @@ export function FederatedComponent({
         shellAlerts={props.shellAlerts}
       >
         <CurrentAppContext.Provider value={app}>
-          <Component {...props} />
+          {Component && <Component {...props} />}
         </CurrentAppContext.Provider>
       </ShellHooksProvider>
     </Suspense>
