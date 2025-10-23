@@ -1,6 +1,6 @@
 {
   "name": "@scality/module-federation",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "",
   "main": "build/ModuleFederation.js",
   "scripts": {
