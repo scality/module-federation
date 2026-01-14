@@ -40,16 +40,35 @@ export function registerAndLoadModule(
   return loadModule(scope, module);
 }
 
+declare var __webpack_init_sharing__: (scope: string) => Promise<void>;
+declare var __webpack_share_scopes__: { default: any };
+declare global {
+  interface Window {
+    [scope: string]: {
+      init: (sharedModules: any) => Promise<void>;
+      get: (module: string) => () => Module;
+    };
+  }
+}
+
 export function loadModule(
   scope: string,
   module: string
 ): () => Promise<Module> {
   return async () => {
-    const moduleAbsolutePath = module.substring(1);
+    // Initializes the share scope. This fills it with known provided modules from this build and all remotes
+    await __webpack_init_sharing__("default");
+    const container = window[scope]; // or get the container somewhere else
+    // Initialize the container, it may provide shared modules
+    await container.init(__webpack_share_scopes__.default);
+    const factory = await window[scope].get(module);
+    const Module = factory();
+    return Module;
 
-    const remoteUrl = `${scope}${moduleAbsolutePath}`;
+    // const moduleAbsolutePath = module.substring(1);
+    // const remoteUrl = `${scope}${moduleAbsolutePath}`;
 
-    return loadRemote(remoteUrl);
+    // return loadRemote(remoteUrl);
   };
 }
 
