@@ -17,6 +17,7 @@ import React, {
   useState,
 } from "react";
 import { NavigateOptions, To, useNavigate } from "react-router";
+import { MicroAppRuntimeConfigurationPlugin } from "./MicroAppRuntimeConfigurationPlugin";
 type Module = any;
 
 const registeredApps: string[] = [];
@@ -247,3 +248,5 @@ export const useBasenameRelativeNavigate = () => {
 
   return navigate;
 };
+
+export { MicroAppRuntimeConfigurationPlugin };
