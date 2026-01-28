@@ -5,7 +5,7 @@ import type { Compiler } from '@rspack/core';
 // Types
 // ============================================================================
 
-type MicroAppRuntimeConfiguration = {
+export type MicroAppRuntimeConfiguration = {
   kind: string;
   apiVersion: string;
   metadata: Record<string, unknown>;
@@ -76,7 +76,7 @@ type EnvOverride = {
   newValue: unknown;
 };
 
-function applyEnvOverrides(config: MicroAppRuntimeConfiguration, prefix: string): MicroAppRuntimeConfiguration {
+export function applyEnvOverrides(config: MicroAppRuntimeConfiguration, prefix: string): MicroAppRuntimeConfiguration {
   const result = JSON.parse(JSON.stringify(config)) as MicroAppRuntimeConfiguration;
   const overrides: EnvOverride[] = [];
 
