@@ -1,7 +1,6 @@
 import { loadRemote, registerRemotes } from '@module-federation/enhanced/runtime';
 import React, {
   ComponentType,
-  FC,
   FunctionComponent,
   LazyExoticComponent,
   ReactNode,
@@ -10,13 +9,12 @@ import React, {
   lazy,
   useContext,
   useLayoutEffect,
-  useMemo,
   useState,
 } from 'react';
 import { NavigateOptions, To, useNavigate } from 'react-router';
 import {
   MicroAppRuntimeConfigurationPlugin,
-  microAppRuntimeConfigurationPlugin,
+  pluginMicroAppRuntimeConfiguration,
 } from './MicroAppRuntimeConfigurationPlugin';
 type Module = any;
 
@@ -217,5 +215,4 @@ export const useBasenameRelativeNavigate = () => {
   return navigate;
 };
 
-export { MicroAppRuntimeConfigurationPlugin };
-export { microAppRuntimeConfigurationPlugin };
+export { MicroAppRuntimeConfigurationPlugin, pluginMicroAppRuntimeConfiguration };

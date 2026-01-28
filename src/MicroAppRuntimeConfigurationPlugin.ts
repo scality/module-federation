@@ -167,7 +167,7 @@ export class MicroAppRuntimeConfigurationPlugin {
 // Rsbuild Plugin (functional)
 // ============================================================================
 
-export const microAppRuntimeConfigurationPlugin = (
+export const pluginMicroAppRuntimeConfiguration = (
   options: MicroAppRuntimeConfigurationPluginOptions,
 ): RsbuildPlugin => {
   const { defaultConfig, prefix = 'MICRO_APP_RUNTIME_', headers = {} } = options;
@@ -176,7 +176,7 @@ export const microAppRuntimeConfigurationPlugin = (
   const config = applyEnvOverrides(defaultConfig, prefix);
 
   return {
-    name: 'micro-app-runtime-configuration',
+    name: 'plugin-micro-app-runtime-configuration',
     setup(api) {
       api.modifyRsbuildConfig((rsbuildConfig, { mergeRsbuildConfig }) => {
         return mergeRsbuildConfig(rsbuildConfig, {
