@@ -1,7 +1,4 @@
-import {
-  loadRemote,
-  registerRemotes,
-} from "@module-federation/enhanced/runtime";
+import { loadRemote, registerRemotes } from '@module-federation/enhanced/runtime';
 import React, {
   ComponentType,
   FC,
@@ -15,17 +12,16 @@ import React, {
   useLayoutEffect,
   useMemo,
   useState,
-} from "react";
-import { NavigateOptions, To, useNavigate } from "react-router";
-import { MicroAppRuntimeConfigurationPlugin } from "./MicroAppRuntimeConfigurationPlugin";
+} from 'react';
+import { NavigateOptions, To, useNavigate } from 'react-router';
+import {
+  MicroAppRuntimeConfigurationPlugin,
+  microAppRuntimeConfigurationPlugin,
+} from './MicroAppRuntimeConfigurationPlugin';
 type Module = any;
 
 const registeredApps: string[] = [];
-export function registerAndLoadModule(
-  scope: string,
-  module: string,
-  url: string
-): () => Promise<Module> {
+export function registerAndLoadModule(scope: string, module: string, url: string): () => Promise<Module> {
   if (registeredApps.includes(scope)) {
     return loadModule(scope, module);
   }
@@ -41,10 +37,7 @@ export function registerAndLoadModule(
   return loadModule(scope, module);
 }
 
-export function loadModule(
-  scope: string,
-  module: string
-): () => Promise<Module> {
+export function loadModule(scope: string, module: string): () => Promise<Module> {
   return async () => {
     const moduleAbsolutePath = module.substring(1);
 
@@ -60,9 +53,7 @@ export const useCurrentApp = () => {
   const contextValue = useContext(CurrentAppContext);
 
   if (contextValue === null) {
-    throw new Error(
-      "useCurrentApp can't be used outside of CurrentAppContext.Provider"
-    );
+    throw new Error("useCurrentApp can't be used outside of CurrentAppContext.Provider");
   }
 
   return contextValue;
@@ -106,13 +97,8 @@ export function FederatedComponent({
 
   return (
     <Suspense fallback={renderOnLoading ?? <>Loading...</>}>
-      <ShellHooksProvider
-        shellHooks={props.shellHooks}
-        shellAlerts={props.shellAlerts}
-      >
-        <CurrentAppContext.Provider value={app}>
-          {Component && <Component {...props} />}
-        </CurrentAppContext.Provider>
+      <ShellHooksProvider shellHooks={props.shellHooks} shellAlerts={props.shellAlerts}>
+        <CurrentAppContext.Provider value={app}>{Component && <Component {...props} />}</CurrentAppContext.Provider>
       </ShellHooksProvider>
     </Suspense>
   );
@@ -126,19 +112,18 @@ export const lazyWithModules = <Props extends {}>(
     const loadedModules = await Promise.all(
       modules.map((mod) => {
         return registerAndLoadModule(mod.scope, mod.module, mod.url)();
-      })
+      }),
     );
     const moduleExports = loadedModules.reduce(
       (current, loadedModule, index) => ({
         ...current,
         [modules[index].module]: loadedModule,
       }),
-      {}
+      {},
     );
     return {
       __esModule: true,
-      default: (originalProps: Props) =>
-        functionComponent({ moduleExports: moduleExports, ...originalProps }),
+      default: (originalProps: Props) => functionComponent({ moduleExports: moduleExports, ...originalProps }),
     };
   });
 };
@@ -162,9 +147,7 @@ export const ComponentWithFederatedImports = <Props extends {}>({
     module: string;
   }[];
 }) => {
-  const [Component, setComponent] = useState<LazyExoticComponent<any> | null>(
-    null
-  );
+  const [Component, setComponent] = useState<LazyExoticComponent<any> | null>(null);
   useLayoutEffect(() => {
     const Comp = lazyWithModules(
       componentWithInjectedImports,
@@ -172,55 +155,42 @@ export const ComponentWithFederatedImports = <Props extends {}>({
         scope: federatedImport.scope,
         module: federatedImport.module,
         url: federatedImport.remoteEntryUrl,
-      }))
+      })),
     );
     setComponent(() => Comp);
   }, [JSON.stringify(federatedImports)]);
 
   return (
-    <Suspense fallback={renderOnLoading ?? <>Loading...</>}>
-      {Component && <Component {...componentProps} />}
-    </Suspense>
+    <Suspense fallback={renderOnLoading ?? <>Loading...</>}>{Component && <Component {...componentProps} />}</Suspense>
   );
 };
 
-type ShellHooks<T extends { shellHooks: any }> = T["shellHooks"];
-type ShellAlerts<T extends { shellAlerts: any }> = T["shellAlerts"];
+type ShellHooks<T extends { shellHooks: any }> = T['shellHooks'];
+type ShellAlerts<T extends { shellAlerts: any }> = T['shellAlerts'];
 
 const shellHooksContext = createContext<ShellHooks<any> | null>(null);
 const shellAlertsContext = createContext<ShellAlerts<any> | null>(null);
 
-export const useShellHooks = <
-  T extends { shellHooks: any }
->(): ShellHooks<T> => {
+export const useShellHooks = <T extends { shellHooks: any }>(): ShellHooks<T> => {
   const hooks = useContext(shellHooksContext);
   if (!hooks) {
-    throw new Error(
-      "useShellHooks must be used within a ShellHooksProvider and initialized with valid hooks."
-    );
+    throw new Error('useShellHooks must be used within a ShellHooksProvider and initialized with valid hooks.');
   }
 
   return hooks;
 };
 
-export const useShellAlerts = <
-  T extends { shellAlerts: any }
->(): ShellAlerts<T> => {
+export const useShellAlerts = <T extends { shellAlerts: any }>(): ShellAlerts<T> => {
   const alerts = useContext(shellAlertsContext);
 
   if (!alerts) {
-    throw new Error(
-      "useShellAlerts must be used within a ShellHooksProvider and initialized with valid alerts."
-    );
+    throw new Error('useShellAlerts must be used within a ShellHooksProvider and initialized with valid alerts.');
   }
 
   return alerts;
 };
 
-export const ShellHooksProvider = <
-  T extends { shellHooks: any },
-  K extends { shellAlerts: any }
->({
+export const ShellHooksProvider = <T extends { shellHooks: any }, K extends { shellAlerts: any }>({
   shellHooks,
   shellAlerts,
   children,
@@ -231,9 +201,7 @@ export const ShellHooksProvider = <
 }) => {
   return (
     <shellHooksContext.Provider value={shellHooks}>
-      <shellAlertsContext.Provider value={shellAlerts}>
-        {children}
-      </shellAlertsContext.Provider>
+      <shellAlertsContext.Provider value={shellAlerts}>{children}</shellAlertsContext.Provider>
     </shellHooksContext.Provider>
   );
 };
@@ -250,3 +218,4 @@ export const useBasenameRelativeNavigate = () => {
 };
 
 export { MicroAppRuntimeConfigurationPlugin };
+export { microAppRuntimeConfigurationPlugin };
